@@ -1,11 +1,8 @@
-use egui::{
-    Color32, Frame, Pos2, Rect, Response, Sense, Slider, Spinner, Stroke, Style, Ui, Vec2, Visuals,
-    Widget,
-};
+use egui::{Color32, Frame, Pos2, Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget};
 
-/// Configuration for the ToggleSquares widget appearance
+/// Configuration for the widget appearance
 //#[derive(Clone)]
-pub struct ToggleSquaresConfig {
+pub struct WidgetConfig {
     frame_size: Vec2,
     frame_rect_abs_coords: Rect,
     square_size: f32,
@@ -21,7 +18,7 @@ pub struct ToggleSquaresConfig {
     square_rounding: f32,
 }
 
-impl Default for ToggleSquaresConfig {
+impl Default for WidgetConfig {
     fn default() -> Self {
         Self {
             frame_size: Vec2::new(300.0, 240.0),
@@ -45,7 +42,7 @@ impl Default for ToggleSquaresConfig {
 }
 
 //#[derive(Default)]
-pub struct ToggleSquares<'a> {
+pub struct WidgetState<'a> {
     // state: ToggleState<'a>,
     // config: ToggleSquaresConfig,
     button_on_1: &'a mut bool,
@@ -54,10 +51,10 @@ pub struct ToggleSquares<'a> {
     button_pressed_2: &'a mut bool,
     widget_hovered: &'a mut bool,
     slider_val: &'a mut f32,
-    config: ToggleSquaresConfig,
+    config: WidgetConfig,
 }
 
-impl<'a> ToggleSquares<'a> {
+impl<'a> WidgetState<'a> {
     pub fn new(
         button_on_1: &'a mut bool,
         button_on_2: &'a mut bool,
@@ -78,7 +75,7 @@ impl<'a> ToggleSquares<'a> {
     }
 }
 
-impl<'a> Widget for ToggleSquares<'a> {
+impl<'a> Widget for WidgetState<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let frame = Frame::none()
             .inner_margin(10.0)
@@ -113,11 +110,16 @@ impl<'a> Widget for ToggleSquares<'a> {
             let start_x = (self.config.frame_size.x - total_width) / 2.0;
             let start_y = (self.config.frame_size.y - self.config.square_size) / 2.0;
 
+            //
             // Left square
+            //
             let left_rect = Rect::from_min_size(
+                // Calculate top left corner of rect
                 ui.min_rect().min + Vec2::new(start_x, start_y),
+                // Size of rect, stretching down/right from top left corner
                 Vec2::new(self.config.square_size, self.config.square_size),
             );
+            // egui "ignores layout of the Ui and puts widget here!"
             let left_response = ui.allocate_rect(left_rect, Sense::click());
 
             if left_response.clicked() {
@@ -126,7 +128,9 @@ impl<'a> Widget for ToggleSquares<'a> {
             }
             self.draw_square(ui, left_rect, *self.button_on_1, &left_response);
 
+            //
             // Right square
+            //
             let right_rect = Rect::from_min_size(
                 ui.min_rect().min
                     + Vec2::new(
@@ -142,6 +146,7 @@ impl<'a> Widget for ToggleSquares<'a> {
                 *self.button_pressed_2 = true;
             }
             self.draw_square(ui, right_rect, *self.button_on_2, &right_response);
+
             //
             // Draw slider
             //
@@ -159,8 +164,9 @@ impl<'a> Widget for ToggleSquares<'a> {
                 Slider::new(&mut *self.slider_val, 0.0..=100.0).text("My value"),
             );
 
+            // Define rect for slider to fit into
             let position = egui::pos2(left_rect.left() - 50.0, left_rect.bottom() + 44.0); // X and Y coordinates
-            let size = Vec2::new(150.0, 30.0); // Width and height
+            let size = Vec2::new(120.0, 30.0); // Width and height
             let rect = Rect::from_min_size(position, size);
 
             // Place the slider at the defined rectangle
@@ -193,7 +199,18 @@ impl<'a> Widget for ToggleSquares<'a> {
     }
 }
 
-impl<'a> ToggleSquares<'a> {
+pub struct TestStruct {
+    pub state: bool,
+    pub value: u32,
+}
+
+struct Rectangle {
+    size_x_y: Rect, // f32
+}
+
+impl<'a> WidgetState<'a> {
+    fn draw_rect(rect: Rectangle) {}
+
     fn draw_square(&mut self, ui: &mut Ui, rect: Rect, is_active: bool, response: &Response) {
         let color = if is_active {
             if response.hovered() {
@@ -217,19 +234,19 @@ impl<'a> ToggleSquares<'a> {
             y: self.config.frame_rect_abs_coords.min.y,
         };
 
-        let my_wee_rect = Rect {
-            min: egui::pos2(0., 0.),
-            max: egui::pos2(33., 33.),
-        };
+        // let my_wee_rect = Rect {
+        //     min: egui::pos2(0., 0.),
+        //     max: egui::pos2(33., 33.),
+        // };
 
-        for i in 1..50 {
-            let rect = my_wee_rect.translate(Vec2 {
-                x: origin.x + i as f32,
-                y: origin.y + i as f32,
-            });
+        // for i in 1..50 {
+        //     let rect = my_wee_rect.translate(Vec2 {
+        //         x: origin.x + i as f32,
+        //         y: origin.y + i as f32,
+        //     });
 
-            ui.painter()
-                .rect_filled(rect, self.config.square_rounding, color);
-        }
+        //     ui.painter()
+        //         .rect_filled(rect, self.config.square_rounding, color);
+        // }
     }
 }

@@ -1,15 +1,15 @@
 [package]
-name = "egui-widget-shapes"
+name = "egui-pump-widget"
 version = "0.1.0"
 authors = ["Rob Ward <rob@resona.nz>"]
 edition = "2021"
 include = ["LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 rust-version = "1.82"
-repository = "https://github.com/resonanz/egui-widget-shapes"
+repository = "https://github.com/resonanz/egui-pump-widget"
 keywords = ["eframe", "egui", "ui", "widgets"]
-description = "An egui widget that that contains several different shapes and shape response sensings."
+description = "An egui pump widget."
 license = "MIT"
-documentation = "https://docs.rs/egui-widget-shapes"
+documentation = "https://docs.rs/egui-pump-widget"
 
 [dependencies]
 egui = "0.29.1"

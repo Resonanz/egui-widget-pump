@@ -1,57 +1,78 @@
 use egui::{Color32, Frame, Pos2, Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget};
 
-/// Configuration for the widget appearance
+/// Configuration for the
+/// widget appearance
 //#[derive(Clone)]
-pub struct WidgetConfig {
+pub struct ConfigFrame {
+    // Frame config
     frame_size: Vec2,
-    frame_rect_abs_coords: Rect,
-    square_size: f32,
-    square_spacing: f32,
+    frame_rounding: f32,
     frame_stroke: Stroke,
     frame_stroke_hover: Stroke,
     frame_fill: Color32,
     frame_fill_hover: Color32,
-    inactive_color: Color32,
-    active_color: Color32,
-    hover_color: Color32,
-    frame_rounding: f32,
-    square_rounding: f32,
 }
 
-impl Default for WidgetConfig {
+impl Default for ConfigFrame {
     fn default() -> Self {
         Self {
+            // Frame
             frame_size: Vec2::new(300.0, 240.0),
-            frame_rect_abs_coords: Rect {
-                min: egui::Pos2 { x: 0., y: 0. },
-                max: egui::Pos2 { x: 0., y: 0. },
-            },
-            square_size: 50.0,
-            square_spacing: 40.0,
+            frame_rounding: 14.0,
             frame_stroke: Stroke::new(2.0, Color32::from_gray(100)),
             frame_stroke_hover: Stroke::new(2.0, Color32::WHITE),
             frame_fill: Color32::BLACK,
             frame_fill_hover: Color32::from_black_alpha(123),
-            inactive_color: Color32::from_gray(180),
-            active_color: Color32::from_rgb(100, 200, 100),
-            hover_color: Color32::from_rgb(150, 220, 150),
-            frame_rounding: 4.0,
-            square_rounding: 2.0,
         }
     }
 }
 
+//
+// Data structure defining
+// a button rectangle
+//
+pub struct ButtonRectStruct {
+    /// The min_x_y_coords refer
+    /// to the top left corner of
+    /// the rectangle, relative
+    /// to the containing frame.
+    abs_min_x_y_coords: Vec2,
+    x_y_dims: Vec2,
+    inactive_color: Color32,
+    active_color: Color32,
+    hover_color: Color32,
+    rounding: f32,
+}
+
+//
+// Default values
+//
+impl Default for ButtonRectStruct {
+    fn default() -> Self {
+        Self {
+            abs_min_x_y_coords: Vec2::default(),
+            x_y_dims: Vec2::default(),
+            inactive_color: Color32::from_gray(180),
+            active_color: Color32::from_rgb(100, 200, 100),
+            hover_color: Color32::from_rgb(150, 220, 150),
+            rounding: 4.0,
+        }
+    }
+}
+
+/// WidgetState is the portal that
+/// stores shared state between the
+/// widget crate and other crates.
 //#[derive(Default)]
 pub struct WidgetState<'a> {
     // state: ToggleState<'a>,
-    // config: ToggleSquaresConfig,
+    // config: ToggleRectsConfig,
     button_on_1: &'a mut bool,
     button_on_2: &'a mut bool,
     button_pressed_1: &'a mut bool,
     button_pressed_2: &'a mut bool,
     widget_hovered: &'a mut bool,
     slider_val: &'a mut f32,
-    config: WidgetConfig,
 }
 
 impl<'a> WidgetState<'a> {
@@ -70,112 +91,110 @@ impl<'a> WidgetState<'a> {
             button_pressed_2,
             widget_hovered,
             slider_val,
-            config: Default::default(),
         }
     }
 }
 
+//
+//
+//
+//
+//
 impl<'a> Widget for WidgetState<'a> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    fn ui(self, ui: &mut Ui) -> Response {
+        // Instantiate the required
+        // widget building blocks
+        let config_frame = ConfigFrame::default();
+
+        //
+        // Define the frame
+        //
         let frame = Frame::none()
             .inner_margin(10.0)
-            .outer_margin(10.)
+            .outer_margin(10.0)
+            //
+            // Change frame fill if hovered
+            //
             .fill(if *self.widget_hovered {
-                self.config.frame_fill_hover
+                config_frame.frame_fill_hover
             } else {
-                self.config.frame_fill
+                config_frame.frame_fill
             })
+            //
+            // Change frame outline stroke if hovered
+            //
             .stroke(if *self.widget_hovered {
-                self.config.frame_stroke_hover
+                config_frame.frame_stroke_hover
             } else {
-                self.config.frame_stroke
+                config_frame.frame_stroke
             })
-            .rounding(self.config.frame_rounding);
+            .rounding(config_frame.frame_rounding);
 
+        //
+        // Show the frame
+        //
         let frame_response = frame.show(ui, |ui| {
-            ui.set_min_size(self.config.frame_size);
-            self.config.frame_rect_abs_coords = ui.min_rect(); // Capture the frame coordinates
-
-            // Access the absolute position and size of the frame
-            self.config.frame_rect_abs_coords = ui.min_rect(); // ui.min_rect() is the smallest rectangle that
-                                                               // fully encompasses the widget you’re working on.
-                                                               // The top-left corner of this rectangle is the
-                                                               // absolute position of the widget in the window.
-            let frame_max_rect = ui.max_rect(); // ui.max_rect() is the maximum rectangle
-                                                //allocated to the UI, which can be helpful
-                                                //if you want the bounds of the entire UI area
-                                                //available to the current context.
-
-            let total_width = (self.config.square_size * 2.0) + self.config.square_spacing;
-            let start_x = (self.config.frame_size.x - total_width) / 2.0;
-            let start_y = (self.config.frame_size.y - self.config.square_size) / 2.0;
+            // Set the minimum size of the ui (that is, the frame)
+            ui.set_min_size(config_frame.frame_size);
 
             //
-            // Left square
+            // Left rectangle
             //
-            let left_rect = Rect::from_min_size(
-                // Calculate top left corner of rect
-                ui.min_rect().min + Vec2::new(start_x, start_y),
-                // Size of rect, stretching down/right from top left corner
-                Vec2::new(self.config.square_size, self.config.square_size),
-            );
-            // egui "ignores layout of the Ui and puts widget here!"
-            let left_response = ui.allocate_rect(left_rect, Sense::click());
-
-            if left_response.clicked() {
-                *self.button_on_1 = !*self.button_on_1;
-                *self.button_pressed_1 = true;
-            }
-            self.draw_square(ui, left_rect, *self.button_on_1, &left_response);
-
-            //
-            // Right square
-            //
-            let right_rect = Rect::from_min_size(
-                ui.min_rect().min
-                    + Vec2::new(
-                        start_x + self.config.square_size + self.config.square_spacing,
-                        start_y,
-                    ),
-                Vec2::new(self.config.square_size, self.config.square_size),
-            );
-            let right_response = ui.allocate_rect(right_rect, Sense::click());
-
-            if right_response.clicked() {
-                *self.button_on_2 = !*self.button_on_2;
-                *self.button_pressed_2 = true;
-            }
-            self.draw_square(ui, right_rect, *self.button_on_2, &right_response);
-
-            //
-            // Draw slider
-            //
-            // fn show_slider(ui: &mut egui::Ui, slider_val: &mut f32) {
-            // Define the exact position and size of the slider
-            let position = egui::pos2(left_rect.left() - 50.0, left_rect.bottom() + 20.0); // X and Y coordinates
-            let size = Vec2::new(150.0, 30.0); // Width and height
-            let rect = Rect::from_min_size(position, size);
-
-            ui.style_mut().spacing.slider_width = 150.;
-
-            // Place the slider at the defined rectangle
-            ui.put(
-                rect,
-                Slider::new(&mut *self.slider_val, 0.0..=100.0).text("My value"),
+            //            let left_response = self.draw_rect(
+            let left_response = draw_rect(
+                ui,
+                self.button_on_1,
+                self.button_pressed_1,
+                &ButtonRectStruct {
+                    abs_min_x_y_coords: Vec2 { x: 50.0, y: 50.0 },
+                    x_y_dims: Vec2 { x: 50.0, y: 40.0 },
+                    ..Default::default()
+                },
             );
 
-            // Define rect for slider to fit into
-            let position = egui::pos2(left_rect.left() - 50.0, left_rect.bottom() + 44.0); // X and Y coordinates
-            let size = Vec2::new(120.0, 30.0); // Width and height
-            let rect = Rect::from_min_size(position, size);
-
-            // Place the slider at the defined rectangle
-            ui.put(
-                rect,
-                Slider::new(&mut *self.slider_val, 0.0..=100.0).text("My value"),
+            //
+            // Right rectangle
+            //
+            let right_response = draw_rect(
+                ui,
+                self.button_on_2,
+                self.button_pressed_2,
+                &ButtonRectStruct {
+                    abs_min_x_y_coords: Vec2 { x: 150.0, y: 150.0 },
+                    x_y_dims: Vec2 { x: 50.0, y: 40.0 },
+                    ..Default::default()
+                },
             );
-            // }
 
+            /*
+                       //
+                       // Draw slider
+                       //
+                       // fn show_slider(ui: &mut egui::Ui, slider_val: &mut f32) {
+                       // Define the exact position and size of the slider
+                       let position = egui::pos2(left_rect.left() - 50.0, left_rect.bottom() + 20.0); // X and Y coordinates
+                       let size = Vec2::new(150.0, 30.0); // Width and height
+                       let rect = Rect::from_min_size(position, size);
+
+                       ui.style_mut().spacing.slider_width = 150.;
+
+                       // Place the slider at the defined rectangle
+                       ui.put(
+                           rect,
+                           Slider::new(&mut *self.slider_val, 0.0..=100.0).text("My value"),
+                       );
+
+                       // Define rect for slider to fit into
+                       let position = egui::pos2(left_rect.left() - 50.0, left_rect.bottom() + 44.0); // X and Y coordinates
+                       let size = Vec2::new(120.0, 30.0); // Width and height
+                       let rect = Rect::from_min_size(position, size);
+
+                       // Place the slider at the defined rectangle
+                       ui.put(
+                           rect,
+                           Slider::new(&mut *self.slider_val, 0.0..=100.0).text("My value"),
+                       );
+            */
             // Return both responses for combining
             (left_response, right_response)
         });
@@ -184,7 +203,7 @@ impl<'a> Widget for WidgetState<'a> {
         let mut response = frame_response.response;
         let (left_response, right_response) = frame_response.inner;
 
-        // Update the response's clicked state based on either square being clicked
+        // Update the response's clicked state based on either rectangle being clicked
         if left_response.clicked() || right_response.clicked() {
             response.mark_changed();
         }
@@ -199,54 +218,82 @@ impl<'a> Widget for WidgetState<'a> {
     }
 }
 
-pub struct TestStruct {
-    pub state: bool,
-    pub value: u32,
-}
+//
+//
+//
+//
+//
+fn draw_rect(
+    ui: &mut Ui,
+    rect_on: &mut bool,
+    rect_pressed: &mut bool,
+    rectangle: &ButtonRectStruct,
+) -> Response {
+    let rect = Rect::from_min_size(
+        // Position the rectangle.
+        //
+        // Rect::from_min_size takes two vectors
+        // which are two sets of x,y coords.
+        //
+        // First, find abs pos of ui (frame) origin (0,0).
+        // Then, add button coordinate offset. This would
+        // be the top left corner.
+        //
+        // Second, find the bottom right corner.
+        // Combined, these provide abs coords
+        // (x1, y1) and (x2, y2) of rectangle.
+        ui.min_rect().min + rectangle.abs_min_x_y_coords,
+        rectangle.x_y_dims,
+    );
+    let response = ui.allocate_rect(rect, Sense::click());
 
-struct Rectangle {
-    size_x_y: Rect, // f32
-}
-
-impl<'a> WidgetState<'a> {
-    fn draw_rect(rect: Rectangle) {}
-
-    fn draw_square(&mut self, ui: &mut Ui, rect: Rect, is_active: bool, response: &Response) {
-        let color = if is_active {
-            if response.hovered() {
-                self.config.hover_color
-            } else {
-                self.config.active_color
-            }
-        } else {
-            if response.hovered() {
-                self.config.hover_color
-            } else {
-                self.config.inactive_color
-            }
-        };
-
-        ui.painter()
-            .rect_filled(rect, self.config.square_rounding, color);
-
-        let origin = Pos2 {
-            x: self.config.frame_rect_abs_coords.min.x,
-            y: self.config.frame_rect_abs_coords.min.y,
-        };
-
-        // let my_wee_rect = Rect {
-        //     min: egui::pos2(0., 0.),
-        //     max: egui::pos2(33., 33.),
-        // };
-
-        // for i in 1..50 {
-        //     let rect = my_wee_rect.translate(Vec2 {
-        //         x: origin.x + i as f32,
-        //         y: origin.y + i as f32,
-        //     });
-
-        //     ui.painter()
-        //         .rect_filled(rect, self.config.square_rounding, color);
-        // }
+    if response.clicked() {
+        //   *self.button_on_2 = !*self.button_on_2;
+        // *self.button_pressed_2 = true;
+        *rect_on = !*rect_on;
+        *rect_pressed = true;
+        *rect_on = true;
     }
+
+    //
+    //
+    //
+
+    let color = if *rect_on {
+        if response.hovered() {
+            rectangle.hover_color
+        } else {
+            rectangle.active_color
+        }
+    } else {
+        if response.hovered() {
+            rectangle.hover_color
+        } else {
+            rectangle.inactive_color
+        }
+    };
+
+    ui.painter().rect_filled(rect, rectangle.rounding, color);
+
+    response
+
+    // let origin = Pos2 {
+    //     x: config_frame.frame_min_rect_abs_coords.min.x,
+    //     y: config_frame.frame_min_rect_abs_coords.min.y,
+    // };
+
+    // let my_wee_rect = Rect {
+    //     min: egui::pos2(0., 0.),
+    //     max: egui::pos2(33., 33.),
+    // };
+
+    // for i in 1..50 {
+    //     let rect = my_wee_rect.translate(Vec2 {
+    //         x: origin.x + i as f32,
+    //         y: origin.y + i as f32,
+    //     });
+
+    //     ui.painter()
+    //         .rect_filled(rect, widget_config.rect_rounding, color);
+    // }
 }

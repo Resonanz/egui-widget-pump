@@ -1,42 +1,108 @@
+pub mod constants;
+use constants::{
+    SHAPE_1_TOP_LEFT_X_Y_COORDS, SHAPE_1_X_Y_DIMS, SHAPE_2_TOP_LEFT_X_Y_COORDS, SHAPE_2_X_Y_DIMS,
+};
+
 use egui::{Color32, Frame, Pos2, Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget};
+///
+/// How this widget works
+///
+/// DEPENDENCY
+/// The widget is a crate (of code) that is
+/// imported in cargo.toml as a dependency.
+/// It can then be used directly in app.rs.
+/// e.g. ui.add(egui_widget_pump::etc...
+///
+/// ACCESSING WIDGET STATE
+///
+/// The widget contains objects such as
+/// rectangles, text, etc. which are made
+/// accessible in app.rs by calling the
+/// WidgetState::new() constructor. The
+/// struct fields are references e.g.
+///
+/// button_on_1: &'a mut bool
+///
+/// that are stored persistently in app.rs
+/// from Self returned from the constructor.
+///
+/// DEFINING THE WIDGET META PROPERTIES
+///
+///
+/// and each object
+/// may need to maintain its state (e.g.
+/// a shape may need to maintain its color
+/// ),
+///
 
 /// Configuration for the
 /// widget appearance
 //#[derive(Clone)]
-pub struct ConfigFrame {
+struct WidgetFrame {
     // Frame config
-    frame_size: Vec2,
-    frame_rounding: f32,
-    frame_stroke: Stroke,
-    frame_stroke_hover: Stroke,
-    frame_fill: Color32,
-    frame_fill_hover: Color32,
+    size: Vec2,
+    rounding: f32,
+    stroke: Stroke,
+    stroke_hover: Stroke,
+    fill: Color32,
+    fill_hover: Color32,
 }
 
-impl Default for ConfigFrame {
+impl Default for WidgetFrame {
     fn default() -> Self {
         Self {
             // Frame
-            frame_size: Vec2::new(300.0, 240.0),
-            frame_rounding: 14.0,
-            frame_stroke: Stroke::new(2.0, Color32::from_gray(100)),
-            frame_stroke_hover: Stroke::new(2.0, Color32::WHITE),
-            frame_fill: Color32::BLACK,
-            frame_fill_hover: Color32::from_black_alpha(123),
+            size: Vec2::new(300.0, 240.0),
+            rounding: 14.0,
+            stroke: Stroke::new(2.0, Color32::from_gray(100)),
+            stroke_hover: Stroke::new(2.0, Color32::WHITE),
+            fill: Color32::BLACK,
+            fill_hover: Color32::from_black_alpha(123),
         }
     }
 }
 
+#[derive(Default)]
+enum Geometry {
+    #[default]
+    Rectangle,
+    Triangle,
+    Circle,
+}
+
+#[derive(Default, PartialEq)]
+pub enum ShapeState {
+    #[default]
+    Off,
+    On,
+}
+
+#[derive(Default, PartialEq)]
+pub enum MouseState {
+    #[default]
+    Off,
+    Clicked,
+    Hovering,
+}
+
+#[derive(Default, PartialEq)]
+pub enum ColorState {
+    #[default]
+    Off,
+    On,
+    OnBright,
+}
+
 //
-// Data structure defining
-// a button rectangle
+// Data structure defining a shape
 //
-pub struct ButtonRectStruct {
+struct ShapeStruct {
     /// The min_x_y_coords refer
     /// to the top left corner of
     /// the rectangle, relative
     /// to the containing frame.
-    abs_min_x_y_coords: Vec2,
+    geometry: Geometry,
+    top_left_x_y_coords: Vec2,
     x_y_dims: Vec2,
     inactive_color: Color32,
     active_color: Color32,
@@ -47,10 +113,11 @@ pub struct ButtonRectStruct {
 //
 // Default values
 //
-impl Default for ButtonRectStruct {
+impl Default for ShapeStruct {
     fn default() -> Self {
         Self {
-            abs_min_x_y_coords: Vec2::default(),
+            geometry: Default::default(),
+            top_left_x_y_coords: Vec2::default(),
             x_y_dims: Vec2::default(),
             inactive_color: Color32::from_gray(180),
             active_color: Color32::from_rgb(100, 200, 100),
@@ -65,46 +132,45 @@ impl Default for ButtonRectStruct {
 /// widget crate and other crates.
 //#[derive(Default)]
 pub struct WidgetState<'a> {
-    // state: ToggleState<'a>,
-    // config: ToggleRectsConfig,
-    button_on_1: &'a mut bool,
-    button_on_2: &'a mut bool,
-    button_pressed_1: &'a mut bool,
-    button_pressed_2: &'a mut bool,
     widget_hovered: &'a mut bool,
-    slider_val: &'a mut f32,
+    shape_state_1: &'a mut ShapeState, // Button 1
+    mouse_state_1: &'a mut MouseState,
+    color_state_1: &'a mut ColorState,
+    shape_state_2: &'a mut ShapeState, // Button 2
+    mouse_state_2: &'a mut MouseState,
+    color_state_2: &'a mut ColorState,
+    slider_val: &'a mut f32, // Slider 1
 }
 
 impl<'a> WidgetState<'a> {
     pub fn new(
-        button_on_1: &'a mut bool,
-        button_on_2: &'a mut bool,
-        button_pressed_1: &'a mut bool,
-        button_pressed_2: &'a mut bool,
         widget_hovered: &'a mut bool,
-        slider_val: &'a mut f32,
+        shape_state_1: &'a mut ShapeState, // Button 1
+        mouse_state_1: &'a mut MouseState,
+        color_state_1: &'a mut ColorState,
+        shape_state_2: &'a mut ShapeState, // Button 2
+        mouse_state_2: &'a mut MouseState,
+        color_state_2: &'a mut ColorState,
+        slider_val: &'a mut f32, // Slider 1
     ) -> Self {
         Self {
-            button_on_1,
-            button_on_2,
-            button_pressed_1,
-            button_pressed_2,
             widget_hovered,
-            slider_val,
+            shape_state_1, // Button 1
+            mouse_state_1,
+            color_state_1,
+            shape_state_2, // Button 2
+            mouse_state_2,
+            color_state_2,
+            slider_val, // Slider 1
         }
     }
 }
 
-//
-//
-//
-//
-//
 impl<'a> Widget for WidgetState<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         // Instantiate the required
         // widget building blocks
-        let config_frame = ConfigFrame::default();
+        let widget_frame = WidgetFrame::default();
 
         //
         // Define the frame
@@ -116,38 +182,40 @@ impl<'a> Widget for WidgetState<'a> {
             // Change frame fill if hovered
             //
             .fill(if *self.widget_hovered {
-                config_frame.frame_fill_hover
+                widget_frame.fill_hover
             } else {
-                config_frame.frame_fill
+                widget_frame.fill
             })
             //
             // Change frame outline stroke if hovered
             //
             .stroke(if *self.widget_hovered {
-                config_frame.frame_stroke_hover
+                widget_frame.stroke_hover
             } else {
-                config_frame.frame_stroke
+                widget_frame.stroke
             })
-            .rounding(config_frame.frame_rounding);
+            .rounding(widget_frame.rounding);
 
         //
         // Show the frame
         //
         let frame_response = frame.show(ui, |ui| {
-            // Set the minimum size of the ui (that is, the frame)
-            ui.set_min_size(config_frame.frame_size);
+            // Set the minimum size of
+            // the ui (that is, the frame)
+            ui.set_min_size(widget_frame.size);
 
             //
             // Left rectangle
             //
-            //            let left_response = self.draw_rect(
-            let left_response = draw_rect(
+            let left_response = draw_shape(
                 ui,
-                self.button_on_1,
-                self.button_pressed_1,
-                &ButtonRectStruct {
-                    abs_min_x_y_coords: Vec2 { x: 50.0, y: 50.0 },
-                    x_y_dims: Vec2 { x: 50.0, y: 40.0 },
+                // self.shape_state_1,
+                self.mouse_state_1,
+                self.color_state_1,
+                &ShapeStruct {
+                    geometry: Geometry::Rectangle,
+                    top_left_x_y_coords: SHAPE_1_TOP_LEFT_X_Y_COORDS,
+                    x_y_dims: SHAPE_1_X_Y_DIMS,
                     ..Default::default()
                 },
             );
@@ -155,13 +223,15 @@ impl<'a> Widget for WidgetState<'a> {
             //
             // Right rectangle
             //
-            let right_response = draw_rect(
+            let right_response = draw_shape(
                 ui,
-                self.button_on_2,
-                self.button_pressed_2,
-                &ButtonRectStruct {
-                    abs_min_x_y_coords: Vec2 { x: 150.0, y: 150.0 },
-                    x_y_dims: Vec2 { x: 50.0, y: 40.0 },
+                // self.shape_state_2,
+                self.mouse_state_2,
+                self.color_state_2,
+                &ShapeStruct {
+                    geometry: Geometry::Rectangle,
+                    top_left_x_y_coords: SHAPE_2_TOP_LEFT_X_Y_COORDS,
+                    x_y_dims: SHAPE_2_X_Y_DIMS,
                     ..Default::default()
                 },
             );
@@ -223,57 +293,79 @@ impl<'a> Widget for WidgetState<'a> {
 //
 //
 //
-fn draw_rect(
+fn draw_shape(
     ui: &mut Ui,
-    rect_on: &mut bool,
-    rect_pressed: &mut bool,
-    rectangle: &ButtonRectStruct,
+    // shape_state: &mut ShapeState,
+    mouse_state: &mut MouseState,
+    color_state: &mut ColorState,
+    shape: &ShapeStruct,
 ) -> Response {
-    let rect = Rect::from_min_size(
-        // Position the rectangle.
-        //
-        // Rect::from_min_size takes two vectors
-        // which are two sets of x,y coords.
-        //
-        // First, find abs pos of ui (frame) origin (0,0).
-        // Then, add button coordinate offset. This would
-        // be the top left corner.
-        //
-        // Second, find the bottom right corner.
-        // Combined, these provide abs coords
-        // (x1, y1) and (x2, y2) of rectangle.
-        ui.min_rect().min + rectangle.abs_min_x_y_coords,
-        rectangle.x_y_dims,
+    // NOTE: ui refers to the frame
+    //
+    // POSITION THE RECTANGLE.
+    //
+    // Rect::from_min_size takes two vectors
+    // which are two sets of x,y coords.
+    //
+    // Resulting rect is absolute coords
+    // (x1, y1) and (x2, y2) of shape
+    // relative to the frame.
+    //
+    let rect_x1_y1_x2_y2 = Rect::from_min_size(
+        ui.min_rect().min /* frame origin */ + shape.top_left_x_y_coords,
+        shape.x_y_dims,
     );
-    let response = ui.allocate_rect(rect, Sense::click());
 
-    if response.clicked() {
-        //   *self.button_on_2 = !*self.button_on_2;
-        // *self.button_pressed_2 = true;
-        *rect_on = !*rect_on;
-        *rect_pressed = true;
-        *rect_on = true;
+    let response: Response;
+
+    match shape.geometry {
+        Geometry::Rectangle => {
+            response = ui.allocate_rect(rect_x1_y1_x2_y2, Sense::click());
+            if response.clicked() {
+                // *shape_on = !*shape_on;
+                *mouse_state = MouseState::Clicked;
+            } else if response.hovered() {
+                *mouse_state = MouseState::Hovering;
+            } else {
+                *mouse_state = MouseState::Off;
+            }
+        }
+        Geometry::Triangle => {
+            response = ui.allocate_rect(rect_x1_y1_x2_y2, Sense::click());
+            println!("Triangle")
+        }
+        Geometry::Circle => {
+            response = ui.allocate_rect(rect_x1_y1_x2_y2, Sense::click());
+            println!("Circle")
+        }
     }
 
     //
     //
     //
-
-    let color = if *rect_on {
-        if response.hovered() {
-            rectangle.hover_color
-        } else {
-            rectangle.active_color
-        }
-    } else {
-        if response.hovered() {
-            rectangle.hover_color
-        } else {
-            rectangle.inactive_color
-        }
+    let color = match color_state {
+        ColorState::Off => shape.inactive_color,
+        ColorState::On => shape.active_color,
+        ColorState::OnBright => shape.hover_color,
     };
 
-    ui.painter().rect_filled(rect, rectangle.rounding, color);
+    //
+    // Draw the shape
+    //
+    // Rectangles require rounding parameter
+    //
+    match shape.geometry {
+        Geometry::Rectangle => {
+            ui.painter()
+                .rect_filled(rect_x1_y1_x2_y2, shape.rounding, color);
+        }
+        Geometry::Triangle => {
+            println!("Triangle")
+        }
+        Geometry::Circle => {
+            println!("Circle")
+        }
+    }
 
     response
 

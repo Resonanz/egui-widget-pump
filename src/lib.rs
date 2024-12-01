@@ -1,6 +1,8 @@
 pub mod constants;
 use constants::{
-    SHAPE_1_TOP_LEFT_X_Y_COORDS, SHAPE_1_X_Y_DIMS, SHAPE_2_TOP_LEFT_X_Y_COORDS, SHAPE_2_X_Y_DIMS,
+    FRAME_INNER_MARGIN, FRAME_OUTER_MARGIN, FRAME_ROUNDING, FRAME_STROKE_COLOR,
+    FRAME_STROKE_COLOR_HOVER, FRAME_STROKE_WIDTH, SHAPE_1_TOP_LEFT_X_Y_COORDS, SHAPE_1_X_Y_DIMS,
+    SHAPE_2_TOP_LEFT_X_Y_COORDS, SHAPE_2_X_Y_DIMS,
 };
 
 use egui::{Color32, Frame, Pos2, Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget};
@@ -41,7 +43,6 @@ use egui::{Color32, Frame, Pos2, Rect, Response, Sense, Slider, Stroke, Ui, Vec2
 struct WidgetFrame {
     // Frame config
     size: Vec2,
-    rounding: f32,
     stroke: Stroke,
     stroke_hover: Stroke,
     fill: Color32,
@@ -53,7 +54,6 @@ impl Default for WidgetFrame {
         Self {
             // Frame
             size: Vec2::new(300.0, 240.0),
-            rounding: 14.0,
             stroke: Stroke::new(2.0, Color32::from_gray(100)),
             stroke_hover: Stroke::new(2.0, Color32::WHITE),
             fill: Color32::BLACK,
@@ -176,8 +176,8 @@ impl<'a> Widget for WidgetState<'a> {
         // Define the frame
         //
         let frame = Frame::none()
-            .inner_margin(10.0)
-            .outer_margin(10.0)
+            .inner_margin(FRAME_INNER_MARGIN)
+            .outer_margin(FRAME_OUTER_MARGIN)
             //
             // Change frame fill if hovered
             //
@@ -190,11 +190,11 @@ impl<'a> Widget for WidgetState<'a> {
             // Change frame outline stroke if hovered
             //
             .stroke(if *self.widget_hovered {
-                widget_frame.stroke_hover
+                Stroke::new(FRAME_STROKE_WIDTH, FRAME_STROKE_COLOR_HOVER)
             } else {
-                widget_frame.stroke
+                Stroke::new(FRAME_STROKE_WIDTH, FRAME_STROKE_COLOR)
             })
-            .rounding(widget_frame.rounding);
+            .rounding(FRAME_ROUNDING);
 
         //
         // Show the frame
@@ -234,6 +234,29 @@ impl<'a> Widget for WidgetState<'a> {
                     x_y_dims: SHAPE_2_X_Y_DIMS,
                     ..Default::default()
                 },
+            );
+
+            let origin = ui.min_rect().min;
+            let r: Rect = Rect {
+                min: Pos2 {
+                    x: origin.x + 0.0,
+                    y: origin.y + 0.0,
+                },
+                max: Pos2 {
+                    x: origin.x + 200.0,
+                    y: origin.y + 20.0,
+                },
+            };
+
+            // Draw a white background
+            ui.painter().rect_filled(r, 0.0, Color32::WHITE);
+            ui.put(
+                r,
+                egui::Label::new(
+                    egui::RichText::new("Bold Black Text")
+                        .color(Color32::BLACK)
+                        .strong(),
+                ),
             );
 
             /*

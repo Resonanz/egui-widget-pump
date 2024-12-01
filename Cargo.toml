@@ -1,5 +1,5 @@
 [package]
-name = "egui_widget_pump"
+name = "egui-widget-pump"
 version = "0.1.0"
 authors = ["Rob Ward <rob@resona.nz>"]
 edition = "2021"

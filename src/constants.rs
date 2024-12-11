@@ -1,8 +1,8 @@
 use egui::{Color32, Vec2};
 
 pub const FRAME_SIZE: Vec2 = Vec2::new(300.0, 240.0);
-pub const FRAME_INNER_MARGIN: f32 = 10.0;
-pub const FRAME_OUTER_MARGIN: f32 = 10.0;
+pub const FRAME_INNER_MARGIN: f32 = 4.0;
+pub const FRAME_OUTER_MARGIN: f32 = 4.0;
 pub const FRAME_ROUNDING: f32 = 4.0;
 pub const FRAME_FILL: Color32 = Color32::BLACK;
 pub const FRAME_FILL_HOVER: Color32 = Color32::from_black_alpha(123);

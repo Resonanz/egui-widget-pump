@@ -5,126 +5,59 @@ use constants::{
     SHAPE_2_TOP_LEFT_X_Y_COORDS, SHAPE_2_X_Y_DIMS,
 };
 
-use egui::{
-    Color32, Frame, Margin, Pos2, Rect, Response, Rounding, Sense, Stroke, Ui, Vec2, Widget,
-};
+use egui::{Color32, Frame, Pos2, Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget};
+///
+/// How this widget works
+///
+/// DEPENDENCY
+/// The widget is a crate (of code) that is
+/// imported in cargo.toml as a dependency.
+/// It can then be used directly in app.rs.
+/// e.g. ui.add(egui_widget_pump::etc...
+///
+/// ACCESSING WIDGET STATE
+///
+/// The widget contains objects such as
+/// rectangles, text, etc. which are made
+/// accessible in app.rs by calling the
+/// WidgetState::new() constructor. The
+/// struct fields are references e.g.
+///
+/// button_on_1: &'a mut bool
+///
+/// that are stored persistently in app.rs
+/// from Self returned from the constructor.
+///
+/// DEFINING THE WIDGET META PROPERTIES
+///
+///
+/// and each object
+/// may need to maintain its state (e.g.
+/// a shape may need to maintain its color
+/// ),
+///
 
-//
-// ======================================================================
-// ======================================================================
-// ======================================================================
-//
-
-#[derive(Clone, Default)]
-pub struct Config<'a> {
-    text: &'a str,
-    frame_size: Vec2,
-    frame_fill: Color32,
-    frame_fill_hover: Color32,
-    frame_stroke: Stroke,
-    frame_stroke_hover: Stroke,
-    frame_inner_margin: Margin,
-    frame_outer_margin: Margin,
-    frame_rounding: Rounding,
-    text_size: f32,
-    // frame_outline_width: f32,
-    // frame_outline_color: Color32,
+/// Configuration for the
+/// widget appearance
+//#[derive(Clone)]
+struct WidgetFrame {
+    // Frame config
+    size: Vec2,
+    stroke: Stroke,
+    stroke_hover: Stroke,
+    fill: Color32,
+    fill_hover: Color32,
 }
 
-//
-// ======================================================================
-// ======================================================================
-// ======================================================================
-//
-
-// Builder starts here
-pub struct ConfigBuilder<'a> {
-    text: &'a str,
-    frame_size: Vec2,
-    frame_fill: Color32,
-    frame_fill_hover: Color32,
-    frame_stroke: Stroke,
-    frame_stroke_hover: Stroke,
-    frame_inner_margin: Margin,
-    frame_outer_margin: Margin,
-    frame_rounding: Rounding,
-    text_size: f32,
-    // frame_outline_width: f32,
-    // frame_outline_color: Color32,
-}
-
-impl<'a> ConfigBuilder<'a> {
-    pub fn new() -> Self {
-        ConfigBuilder {
-            text: "Default text",
-            frame_size: Vec2 { x: 300.0, y: 240.0 },
-            frame_fill: Color32::BLACK,
-            frame_fill_hover: Color32::from_black_alpha(123),
-            frame_stroke: Stroke::new(2.0, Color32::from_gray(100)),
-            frame_stroke_hover: Stroke::new(2.0, Color32::WHITE),
-            frame_inner_margin: Margin::same(0.0),
-            frame_outer_margin: Margin::same(0.0),
-            frame_rounding: Rounding::same(0.0),
-            text_size: 16.0,
-            // frame_outline_width: 1.0,
-            // frame_outline_color: Color32::TRANSPARENT,
-        }
-    }
-
-    pub fn text(mut self, text: &'a str) -> Self {
-        self.text = text;
-        self
-    }
-
-    pub fn frame_size(mut self, frame_size: Vec2) -> Self {
-        self.frame_size = frame_size;
-        self
-    }
-
-    pub fn text_size(mut self, text_size: f32) -> Self {
-        self.text_size = text_size;
-        self
-    }
-
-    pub fn frame_inner_margin(mut self, inner_margin: Margin) -> Self {
-        self.frame_inner_margin = inner_margin;
-        self
-    }
-
-    pub fn frame_outer_margin(mut self, outer_margin: Margin) -> Self {
-        self.frame_outer_margin = outer_margin;
-        self
-    }
-
-    pub fn frame_rounding(mut self, rounding: Rounding) -> Self {
-        self.frame_rounding = rounding;
-        self
-    }
-
-    // pub fn frame_outline_width(mut self, frame_outline_width: f32) -> Self {
-    //     self.frame_outline_width = frame_outline_width;
-    //     self
-    // }
-
-    // pub fn frame_outline_color(mut self, frame_outline_color: Color32) -> Self {
-    //     self.frame_outline_color = frame_outline_color;
-    //     self
-    // }
-
-    pub fn build(self) -> Config<'a> {
-        Config {
-            text: self.text,
-            frame_size: self.frame_size,
-            frame_fill: self.frame_fill,
-            frame_fill_hover: self.frame_fill_hover,
-            frame_stroke: self.frame_stroke,
-            frame_stroke_hover: self.frame_stroke_hover,
-            frame_inner_margin: self.frame_inner_margin,
-            frame_outer_margin: self.frame_outer_margin,
-            frame_rounding: self.frame_rounding,
-            text_size: self.text_size,
-            // frame_outline_width: self.frame_outline_width,
-            // frame_outline_color: self.frame_outline_color,
+impl Default for WidgetFrame {
+    fn default() -> Self {
+        Self {
+            // Frame
+            size: Vec2::new(300.0, 240.0),
+            stroke: Stroke::new(2.0, Color32::from_gray(100)),
+            stroke_hover: Stroke::new(2.0, Color32::WHITE),
+            fill: Color32::BLACK,
+            fill_hover: Color32::from_black_alpha(123),
         }
     }
 }
@@ -133,19 +66,6 @@ impl<'a> ConfigBuilder<'a> {
 // ======================================================================
 // ======================================================================
 //
-
-///
-/// A number of different methods are used
-/// to share information between your app
-/// and the widget.
-///
-/// 1. A ```Config``` struct is used to configure
-///    the properties of the widget.
-/// 2. A ```SidebarTexicon``` struct is used to
-///    share state information between the widget
-///    and the main application.
-///
-///
 
 #[derive(Default)]
 enum Geometry {
@@ -163,102 +83,105 @@ pub enum ShapeState {
 }
 
 #[derive(Default, PartialEq)]
-pub enum PumpMouseState {
+pub enum MouseState {
     #[default]
-    None,
+    Off,
     Clicked,
     Hovering,
 }
 
 #[derive(Default, PartialEq)]
-pub enum PumpColorState {
+pub enum ColorState {
     #[default]
-    Dim,
+    Off,
     On,
-    Highlight,
+    OnBright,
 }
-// WARNING: Complicated
 //
-// The purpose of this struct's contents is to
-// create portals between the main code and this
-// widget code. It does this using references and
-// pointers to communicate via e.g. bools and enums.
+// ======================================================================
+// ======================================================================
+// ======================================================================
 //
-// This struct is instantiated in the calling crate.
+
 //
+// Data structure defining a shape
 //
-pub struct PumpItem<'a> {
-    pub widget_hovered: bool,
-    pub pump_mouse_fwd: PumpMouseState,
-    pub pump_mouse_rev: PumpMouseState,
-    pub pump_color_fwd: PumpColorState,
-    pub pump_color_rev: PumpColorState,
-    pub config: Config<'a>,
+struct ShapeStruct {
+    /// The min_x_y_coords refer
+    /// to the top left corner of
+    /// the rectangle, relative
+    /// to the containing frame.
+    geometry: Geometry,
+    top_left_x_y_coords: Vec2,
+    x_y_dims: Vec2,
+    inactive_color: Color32,
+    active_color: Color32,
+    hover_color: Color32,
+    rounding: f32,
 }
 
-impl<'a> Default for PumpItem<'a> {
-    // Can't seem to simplify this
-    // using ..Default::default()
-    // due to a recursion issue ?!
+//
+// Default values
+//
+impl Default for ShapeStruct {
     fn default() -> Self {
         Self {
-            widget_hovered: Default::default(),
-            pump_mouse_fwd: Default::default(),
-            pump_mouse_rev: Default::default(),
-            pump_color_fwd: Default::default(),
-            pump_color_rev: Default::default(),
-            config: Default::default(),
+            geometry: Default::default(),
+            top_left_x_y_coords: Vec2::default(),
+            x_y_dims: Vec2::default(),
+            inactive_color: Color32::from_gray(180),
+            active_color: Color32::from_rgb(100, 200, 100),
+            hover_color: Color32::from_rgb(150, 220, 150),
+            rounding: 4.0,
         }
     }
 }
-
-impl<'a> PumpItem<'a> {
-    pub fn new(config: Config<'a>) -> Self {
-        Self {
-            widget_hovered: Default::default(),
-            pump_mouse_fwd: Default::default(),
-            pump_mouse_rev: Default::default(),
-            pump_color_fwd: Default::default(),
-            pump_color_rev: Default::default(),
-            config, // config calls ConfigBuilder to populate
-        }
-    }
-}
-
 //
 // ======================================================================
 // ======================================================================
 // ======================================================================
 //
 
-/// Pump is the portal that
+/// WidgetState is the portal that
 /// stores shared state between the
 /// widget crate and other crates.
 //#[derive(Default)]
-#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
-pub struct Pump<'a> {
+pub struct WidgetState<'a> {
     widget_hovered: &'a mut bool,
-    mouse_state_fwd: &'a mut PumpMouseState,
-    mouse_state_rev: &'a mut PumpMouseState,
-    color_state_fwd: &'a mut PumpColorState,
-    color_state_rev: &'a mut PumpColorState,
-    config: &'a Config<'a>,
+    shape_state_1: &'a mut ShapeState, // Button 1
+    mouse_state_1: &'a mut MouseState,
+    color_state_1: &'a mut ColorState,
+    shape_state_2: &'a mut ShapeState, // Button 2
+    mouse_state_2: &'a mut MouseState,
+    color_state_2: &'a mut ColorState,
+    slider_val: &'a mut f32, // Slider 1
 }
 
-impl<'a> Pump<'a> {
-    pub fn new(p: &'a mut PumpItem) -> Self {
+impl<'a> WidgetState<'a> {
+    pub fn new(
+        widget_hovered: &'a mut bool,
+        shape_state_1: &'a mut ShapeState, // Button 1
+        mouse_state_1: &'a mut MouseState,
+        color_state_1: &'a mut ColorState,
+        shape_state_2: &'a mut ShapeState, // Button 2
+        mouse_state_2: &'a mut MouseState,
+        color_state_2: &'a mut ColorState,
+        slider_val: &'a mut f32, // Slider 1
+    ) -> Self {
         Self {
-            widget_hovered: &mut p.widget_hovered,
-            mouse_state_fwd: &mut p.pump_mouse_fwd,
-            mouse_state_rev: &mut p.pump_mouse_rev,
-            color_state_fwd: &mut p.pump_color_fwd,
-            color_state_rev: &mut p.pump_color_rev,
-            config: &mut p.config,
+            widget_hovered,
+            shape_state_1, // Button 1
+            mouse_state_1,
+            color_state_1,
+            shape_state_2, // Button 2
+            mouse_state_2,
+            color_state_2,
+            slider_val, // Slider 1
         }
     }
 }
 
-impl<'a> Widget for Pump<'a> {
+impl<'a> Widget for WidgetState<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         /*
 
@@ -270,6 +193,10 @@ impl<'a> Widget for Pump<'a> {
 
         */
 
+        // Instantiate the required
+        // widget building blocks
+        let widget_frame = WidgetFrame::default();
+
         //
         // Define the frame
         //
@@ -280,9 +207,9 @@ impl<'a> Widget for Pump<'a> {
             // Change frame fill if hovered
             //
             .fill(if *self.widget_hovered {
-                self.config.frame_fill_hover
+                widget_frame.fill_hover
             } else {
-                self.config.frame_fill
+                widget_frame.fill
             })
             //
             // Change frame outline stroke if hovered
@@ -300,8 +227,7 @@ impl<'a> Widget for Pump<'a> {
         let frame_response = frame.show(ui, |ui| {
             // Set the minimum size of
             // the ui (that is, the frame)
-            ui.set_min_size(self.config.frame_size);
-            ui.set_max_size(self.config.frame_size); // Layout the icon and text vertically with some spacing
+            ui.set_min_size(widget_frame.size);
 
             //
             // Left rectangle
@@ -309,8 +235,8 @@ impl<'a> Widget for Pump<'a> {
             let left_response = draw_shape(
                 ui,
                 // self.shape_state_1,
-                self.mouse_state_fwd,
-                self.color_state_fwd,
+                self.mouse_state_1,
+                self.color_state_1,
                 &ShapeStruct {
                     geometry: Geometry::Rectangle,
                     top_left_x_y_coords: SHAPE_1_TOP_LEFT_X_Y_COORDS,
@@ -325,8 +251,8 @@ impl<'a> Widget for Pump<'a> {
             let right_response = draw_shape(
                 ui,
                 // self.shape_state_2,
-                self.mouse_state_rev,
-                self.color_state_rev,
+                self.mouse_state_2,
+                self.color_state_2,
                 &ShapeStruct {
                     geometry: Geometry::Rectangle,
                     top_left_x_y_coords: SHAPE_2_TOP_LEFT_X_Y_COORDS,
@@ -418,8 +344,8 @@ impl<'a> Widget for Pump<'a> {
 fn draw_shape(
     ui: &mut Ui,
     // shape_state: &mut ShapeState,
-    mouse_state: &mut PumpMouseState,
-    color_state: &mut PumpColorState,
+    mouse_state: &mut MouseState,
+    color_state: &mut ColorState,
     shape: &ShapeStruct,
 ) -> Response {
     // NOTE: ui refers to the frame
@@ -445,11 +371,11 @@ fn draw_shape(
             response = ui.allocate_rect(rect_x1_y1_x2_y2, Sense::click());
             if response.clicked() {
                 // *shape_on = !*shape_on;
-                *mouse_state = PumpMouseState::Clicked;
+                *mouse_state = MouseState::Clicked;
             } else if response.hovered() {
-                *mouse_state = PumpMouseState::Hovering;
+                *mouse_state = MouseState::Hovering;
             } else {
-                *mouse_state = PumpMouseState::None;
+                *mouse_state = MouseState::Off;
             }
         }
         Geometry::Triangle => {
@@ -466,9 +392,9 @@ fn draw_shape(
     //
     //
     let color = match color_state {
-        PumpColorState::Dim => shape.inactive_color,
-        PumpColorState::On => shape.active_color,
-        PumpColorState::Highlight => shape.hover_color,
+        ColorState::Off => shape.inactive_color,
+        ColorState::On => shape.active_color,
+        ColorState::OnBright => shape.hover_color,
     };
 
     //
@@ -510,44 +436,4 @@ fn draw_shape(
     //     ui.painter()
     //         .rect_filled(rect, widget_config.rect_rounding, color);
     // }
-}
-
-//
-// ======================================================================
-// ======================================================================
-// ======================================================================
-//
-
-//
-// Data structure defining a shape
-//
-struct ShapeStruct {
-    /// The min_x_y_coords refer
-    /// to the top left corner of
-    /// the rectangle, relative
-    /// to the containing frame.
-    geometry: Geometry,
-    top_left_x_y_coords: Vec2,
-    x_y_dims: Vec2,
-    inactive_color: Color32,
-    active_color: Color32,
-    hover_color: Color32,
-    rounding: f32,
-}
-
-//
-// Default values
-//
-impl Default for ShapeStruct {
-    fn default() -> Self {
-        Self {
-            geometry: Default::default(),
-            top_left_x_y_coords: Vec2::default(),
-            x_y_dims: Vec2::default(),
-            inactive_color: Color32::from_gray(180),
-            active_color: Color32::from_rgb(100, 200, 100),
-            hover_color: Color32::from_rgb(150, 220, 150),
-            rounding: 4.0,
-        }
-    }
 }

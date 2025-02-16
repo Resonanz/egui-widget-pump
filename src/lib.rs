@@ -1,553 +1,439 @@
-pub mod constants;
-use constants::{
-    FRAME_INNER_MARGIN, FRAME_OUTER_MARGIN, FRAME_ROUNDING, FRAME_STROKE_COLOR,
-    FRAME_STROKE_COLOR_HOVER, FRAME_STROKE_WIDTH, SHAPE_1_TOP_LEFT_X_Y_COORDS, SHAPE_1_X_Y_DIMS,
-    SHAPE_2_TOP_LEFT_X_Y_COORDS, SHAPE_2_X_Y_DIMS,
-};
+use std::f32::consts::PI;
 
-use egui::{
-    Color32, Frame, Margin, Pos2, Rect, Response, Rounding, Sense, Stroke, Ui, Vec2, Widget,
-};
+use egui::{pos2, vec2, Color32, CornerRadius, FontId, Id, Rect, Stroke, StrokeKind, Vec2};
+use egui::{Response, Ui, Widget};
 
+// This struct is the data structure stored in the
+// pump hashmap and holds all pump info and status
 //
-// ======================================================================
-// ======================================================================
-// ======================================================================
-//
-
-#[derive(Clone, Default)]
-pub struct Config<'a> {
-    text: &'a str,
-    frame_size: Vec2,
-    frame_fill: Color32,
-    frame_fill_hover: Color32,
-    frame_stroke: Stroke,
-    frame_stroke_hover: Stroke,
-    frame_inner_margin: Margin,
-    frame_outer_margin: Margin,
-    frame_rounding: Rounding,
-    text_size: f32,
-    // frame_outline_width: f32,
-    // frame_outline_color: Color32,
+// This struct is passed into fn new() as a reference.
+// The PumpPortal fields become the shared references.
+#[derive(Default, Debug)]
+pub struct PumpData {
+    pub name: String,
+    pub pitch: f32,
+    pub sound: bool,
+    pub syringeset: Syringeset,
+    pub linkset: Linkset,
+    pub info: bool,
+    pub uid: u32,
+    pub pump_portal: PumpPortal,
 }
 
-//
-// ======================================================================
-// ======================================================================
-// ======================================================================
-//
-
-// Builder starts here
-pub struct ConfigBuilder<'a> {
-    text: &'a str,
-    frame_size: Vec2,
-    frame_fill: Color32,
-    frame_fill_hover: Color32,
-    frame_stroke: Stroke,
-    frame_stroke_hover: Stroke,
-    frame_inner_margin: Margin,
-    frame_outer_margin: Margin,
-    frame_rounding: Rounding,
-    text_size: f32,
-    // frame_outline_width: f32,
-    // frame_outline_color: Color32,
+// These become the shared references
+// between widget and main code base
+#[derive(Default, Debug)]
+pub struct PumpPortal {
+    pub dispense_button: PumpDispenseWithdrawState,
+    pub withdraw_button: PumpDispenseWithdrawState,
+    pub menu_syringe_icon: OffClicked,
+    pub action: Actions,
 }
 
-impl<'a> ConfigBuilder<'a> {
-    pub fn new() -> Self {
-        ConfigBuilder {
-            text: "Default text",
-            frame_size: Vec2 { x: 300.0, y: 240.0 },
-            frame_fill: Color32::BLACK,
-            frame_fill_hover: Color32::from_black_alpha(123),
-            frame_stroke: Stroke::new(2.0, Color32::from_gray(100)),
-            frame_stroke_hover: Stroke::new(2.0, Color32::WHITE),
-            frame_inner_margin: Margin::same(0.0),
-            frame_outer_margin: Margin::same(0.0),
-            frame_rounding: Rounding::same(0.0),
-            text_size: 16.0,
-            // frame_outline_width: 1.0,
-            // frame_outline_color: Color32::TRANSPARENT,
-        }
-    }
-
-    pub fn text(mut self, text: &'a str) -> Self {
-        self.text = text;
-        self
-    }
-
-    pub fn frame_size(mut self, frame_size: Vec2) -> Self {
-        self.frame_size = frame_size;
-        self
-    }
-
-    pub fn text_size(mut self, text_size: f32) -> Self {
-        self.text_size = text_size;
-        self
-    }
-
-    pub fn frame_inner_margin(mut self, inner_margin: Margin) -> Self {
-        self.frame_inner_margin = inner_margin;
-        self
-    }
-
-    pub fn frame_outer_margin(mut self, outer_margin: Margin) -> Self {
-        self.frame_outer_margin = outer_margin;
-        self
-    }
-
-    pub fn frame_rounding(mut self, rounding: Rounding) -> Self {
-        self.frame_rounding = rounding;
-        self
-    }
-
-    // pub fn frame_outline_width(mut self, frame_outline_width: f32) -> Self {
-    //     self.frame_outline_width = frame_outline_width;
-    //     self
-    // }
-
-    // pub fn frame_outline_color(mut self, frame_outline_color: Color32) -> Self {
-    //     self.frame_outline_color = frame_outline_color;
-    //     self
-    // }
-
-    pub fn build(self) -> Config<'a> {
-        Config {
-            text: self.text,
-            frame_size: self.frame_size,
-            frame_fill: self.frame_fill,
-            frame_fill_hover: self.frame_fill_hover,
-            frame_stroke: self.frame_stroke,
-            frame_stroke_hover: self.frame_stroke_hover,
-            frame_inner_margin: self.frame_inner_margin,
-            frame_outer_margin: self.frame_outer_margin,
-            frame_rounding: self.frame_rounding,
-            text_size: self.text_size,
-            // frame_outline_width: self.frame_outline_width,
-            // frame_outline_color: self.frame_outline_color,
-        }
-    }
-}
-//
-// ======================================================================
-// ======================================================================
-// ======================================================================
-//
-
-///
-/// A number of different methods are used
-/// to share information between your app
-/// and the widget.
-///
-/// 1. A ```Config``` struct is used to configure
-///    the properties of the widget.
-/// 2. A ```SidebarTexicon``` struct is used to
-///    share state information between the widget
-///    and the main application.
-///
-///
-
-#[derive(Default)]
-enum Geometry {
+/// Link set
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub enum Syringeset {
     #[default]
-    Rectangle,
-    Triangle,
-    Circle,
+    None,
+    UL10, // 10 uL
+    UL25,
+    UL50,
+    UL100,
+    UL250,
+    UL500,
+    UL1000, // 1 mL
+    UL2500,
+    UL3000,
+    UL5000,
+    UL10000,
+    UL25000,
+    UL50000,
+    UL100000, // 100 mL
 }
 
-#[derive(Default, PartialEq)]
-pub enum ShapeState {
+/// Link set
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub enum Linkset {
+    #[default]
+    None,
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+}
+
+/// Pump mouse interaction states
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub enum OffOn {
     #[default]
     Off,
     On,
 }
 
-#[derive(Default, PartialEq)]
-pub enum PumpMouseState {
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub enum OffClicked {
+    #[default]
+    Off,
+    Clicked,
+}
+
+#[derive(Default, Debug, PartialEq)]
+pub enum PumpDispenseWithdrawState {
     #[default]
     None,
-    Clicked,
-    Hovering,
+    Pressed,
+    Held,
 }
 
-#[derive(Default, PartialEq)]
-pub enum PumpColorState {
+#[derive(Default, Debug, PartialEq)]
+pub enum Actions {
     #[default]
-    Dim,
-    On,
-    Highlight,
-}
-// WARNING: Complicated
-//
-// The purpose of this struct's contents is to
-// create portals between the main code and this
-// widget code. It does this using references and
-// pointers to communicate via e.g. bools and enums.
-//
-// This struct is instantiated in the calling crate.
-//
-//
-pub struct PumpItem<'a> {
-    pub widget_hovered: bool,
-    pub pump_mouse_fwd: PumpMouseState,
-    pub pump_mouse_rev: PumpMouseState,
-    pub pump_color_fwd: PumpColorState,
-    pub pump_color_rev: PumpColorState,
-    pub config: Config<'a>,
+    None,
+    PumpClicked,
+    MenuSyringeClicked,
+    MenuSpeakerClicked,
+    MenuLinksetClicked,
+    MenuFlowSettingsClicked,
+    MenuPumpSettingsClicked,
+    MenuInfoClicked,
+    ButtonDispenseClicked,
+    ButtonWithdrawClicked,
+    ButtonDispenseHeld,
+    ButtonWithdrawHeld,
 }
 
-impl<'a> Default for PumpItem<'a> {
-    // Can't seem to simplify this
-    // using ..Default::default()
-    // due to a recursion issue ?!
-    fn default() -> Self {
-        Self {
-            widget_hovered: Default::default(),
-            pump_mouse_fwd: Default::default(),
-            pump_mouse_rev: Default::default(),
-            pump_color_fwd: Default::default(),
-            pump_color_rev: Default::default(),
-            config: Default::default(),
-        }
-    }
-}
-
-impl<'a> PumpItem<'a> {
-    pub fn new(config: Config<'a>) -> Self {
-        Self {
-            widget_hovered: Default::default(),
-            pump_mouse_fwd: Default::default(),
-            pump_mouse_rev: Default::default(),
-            pump_color_fwd: Default::default(),
-            pump_color_rev: Default::default(),
-            config, // config calls ConfigBuilder to populate
-        }
-    }
-}
-
-//
-// ======================================================================
-// ======================================================================
-// ======================================================================
-//
-
-/// Pump is the portal that
-/// stores shared state between the
-/// widget crate and other crates.
-//#[derive(Default)]
+/// Pump information store
+///
+/// ```mouse_state``` and ```color_state``` are references, used
+/// as state-sharing portals between widget and main code bases.
+///
+/// ```img``` is the Pump image (e.g. PNG, SVG). Images are unknown
+/// to the widget so must be initialized within the main code base.
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Pump<'a> {
-    widget_hovered: &'a mut bool,
-    mouse_state_fwd: &'a mut PumpMouseState,
-    mouse_state_rev: &'a mut PumpMouseState,
-    color_state_fwd: &'a mut PumpColorState,
-    color_state_rev: &'a mut PumpColorState,
-    config: &'a Config<'a>,
+    pub action: &'a mut Actions,
+    pub dispense_state: &'a mut PumpDispenseWithdrawState,
+    pub withdraw_state: &'a mut PumpDispenseWithdrawState,
+    pub menu_syringe_icon: &'a mut OffClicked,
+    pub pitch: &'a mut f32,
+    pub sound_state: &'a mut bool,
+    pub syringeset: &'a mut Syringeset,
+    pub linkset: &'a mut Linkset,
+    pub info: &'a mut bool,
+    pub name: &'a mut String,
 }
 
+/// Default values for the Pump struct...
 impl<'a> Pump<'a> {
-    pub fn new(p: &'a mut PumpItem) -> Self {
-        Self {
-            widget_hovered: &mut p.widget_hovered,
-            mouse_state_fwd: &mut p.pump_mouse_fwd,
-            mouse_state_rev: &mut p.pump_mouse_rev,
-            color_state_fwd: &mut p.pump_color_fwd,
-            color_state_rev: &mut p.pump_color_rev,
-            config: &mut p.config,
+    pub fn new(pump_data: &'a mut PumpData) -> Self {
+        Pump {
+            // TX: Inputs directed to main codebase
+            action: &mut pump_data.pump_portal.action,
+            // RX: Data originating from main codebase
+            dispense_state: &mut pump_data.pump_portal.dispense_button,
+            withdraw_state: &mut pump_data.pump_portal.withdraw_button,
+            menu_syringe_icon: &mut pump_data.pump_portal.menu_syringe_icon,
+            pitch: &mut pump_data.pitch,
+            sound_state: &mut pump_data.sound,
+            syringeset: &mut pump_data.syringeset,
+            linkset: &mut pump_data.linkset,
+            info: &mut pump_data.info,
+            name: &mut pump_data.name,
         }
     }
 }
 
-impl<'a> Widget for Pump<'a> {
+// ==================================================================
+// ==================================================================
+// ==================================================================
+
+/// Widget trait to enable the Pump widget to be displayed
+/// using the standard egui ```ui.add(Pump::new(...))```
+///
+impl Widget for Pump<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        /*
+        let menu_bar_color = ui.style().visuals.text_color();
+        let menu_items_color = ui.style().visuals.extreme_bg_color;
 
-        This may be useful for this complex widget:
+        // Pump panel rectangle
+        let pump_panel = Vec2::new(300.0, 200.0); // Fixed size per panel
 
-        // 4. Paint!
-        if ui.is_rect_visible(rect) {
-            let visuals = ui.style().interact(&response);
+        // Allocate pump panel
+        let (response, painter) = ui.allocate_painter(pump_panel, egui::Sense::hover());
+        let rect = response.rect;
 
-        */
+        // name text (Pos2)
+        let name_text_pos = rect.min + vec2(6.0, 5.0);
 
-        //
-        // Define the frame
-        //
-        let frame = Frame::none()
-            .inner_margin(FRAME_INNER_MARGIN)
-            .outer_margin(FRAME_OUTER_MARGIN)
-            //
-            // Change frame fill if hovered
-            //
-            .fill(if *self.widget_hovered {
-                self.config.frame_fill_hover
-            } else {
-                self.config.frame_fill
-            })
-            //
-            // Change frame outline stroke if hovered
-            //
-            .stroke(if *self.widget_hovered {
-                Stroke::new(FRAME_STROKE_WIDTH, FRAME_STROKE_COLOR_HOVER)
-            } else {
-                Stroke::new(FRAME_STROKE_WIDTH, FRAME_STROKE_COLOR)
-            })
-            .rounding(FRAME_ROUNDING);
+        // Syringe rectangle
+        let syringe_icon_rect = Rect {
+            min: rect.min + vec2(80.0, 4.0),
+            max: rect.min + vec2(96.0, 20.0),
+        };
 
-        //
-        // Show the frame
-        //
-        let frame_response = frame.show(ui, |ui| {
-            // Set the minimum size of
-            // the ui (that is, the frame)
-            ui.set_min_size(self.config.frame_size);
-            ui.set_max_size(self.config.frame_size); // Layout the icon and text vertically with some spacing
+        // Syringe text (Pos2)
+        let syringe_text_pos = rect.min + vec2(100.0, 5.0);
 
-            //
-            // Left rectangle
-            //
-            let left_response = draw_shape(
-                ui,
-                // self.shape_state_1,
-                self.mouse_state_fwd,
-                self.color_state_fwd,
-                &ShapeStruct {
-                    geometry: Geometry::Rectangle,
-                    top_left_x_y_coords: SHAPE_1_TOP_LEFT_X_Y_COORDS,
-                    x_y_dims: SHAPE_1_X_Y_DIMS,
-                    ..Default::default()
-                },
-            );
+        // Speaker SVG rectangle
+        let speaker_rect = Rect {
+            min: rect.min + vec2(240.0, 2.0),
+            max: rect.min + vec2(260.0, 22.0),
+        };
 
-            //
-            // Right rectangle
-            //
-            let right_response = draw_shape(
-                ui,
-                // self.shape_state_2,
-                self.mouse_state_rev,
-                self.color_state_rev,
-                &ShapeStruct {
-                    geometry: Geometry::Rectangle,
-                    top_left_x_y_coords: SHAPE_2_TOP_LEFT_X_Y_COORDS,
-                    x_y_dims: SHAPE_2_X_Y_DIMS,
-                    ..Default::default()
-                },
-            );
+        // Link SVG
+        let link_rect = Rect {
+            min: rect.min + vec2(200.0, 2.0),
+            max: rect.min + vec2(220.0, 22.0),
+        };
 
-            let origin = ui.min_rect().min;
-            let r: Rect = Rect {
-                min: Pos2 {
-                    x: origin.x + 0.0,
-                    y: origin.y + 0.0,
-                },
-                max: Pos2 {
-                    x: origin.x + 200.0,
-                    y: origin.y + 20.0,
-                },
-            };
+        // Info SVG
+        let info_rect = Rect {
+            min: rect.min + vec2(270.0, 2.0),
+            max: rect.min + vec2(290.0, 22.0),
+        };
 
-            // Draw a white background
-            ui.painter().rect_filled(r, 0.0, Color32::WHITE);
-            ui.put(
-                r,
-                egui::Label::new(
-                    egui::RichText::new("Bold Black Text")
-                        .color(Color32::BLACK)
-                        .strong(),
-                ),
-            );
+        // Left arrow button SVG
+        let left_arrow_rect = Rect {
+            min: rect.min + vec2(15.0, 60.0),
+            max: rect.min + vec2(45.0, 90.0),
+        };
 
-            /*
-                       //
-                       // Draw slider
-                       //
-                       // fn show_slider(ui: &mut egui::Ui, slider_val: &mut f32) {
-                       // Define the exact position and size of the slider
-                       let position = egui::pos2(left_rect.left() - 50.0, left_rect.bottom() + 20.0); // X and Y coordinates
-                       let size = Vec2::new(150.0, 30.0); // Width and height
-                       let rect = Rect::from_min_size(position, size);
+        // Right arrow button SVG
+        let right_arrow_rect = Rect {
+            min: rect.min + vec2(255.0, 60.0),
+            max: rect.min + vec2(285.0, 90.0),
+        };
 
-                       ui.style_mut().spacing.slider_width = 150.;
+        // Pump SVG
+        let pump_rect = Rect {
+            min: rect.min + vec2(40.0, 40.0),
+            max: rect.min + vec2(240.0, 100.0),
+        };
 
-                       // Place the slider at the defined rectangle
-                       ui.put(
-                           rect,
-                           Slider::new(&mut *self.slider_val, 0.0..=100.0).text("My value"),
-                       );
+        // Name on pump text (Pos2)
+        let name_on_pump_text_pos = pos2(
+            pump_rect.min.x + ((pump_rect.max.x - pump_rect.min.x) / 2.0),
+            pump_rect.max.y - 11.0,
+        );
 
-                       // Define rect for slider to fit into
-                       let position = egui::pos2(left_rect.left() - 50.0, left_rect.bottom() + 44.0); // X and Y coordinates
-                       let size = Vec2::new(120.0, 30.0); // Width and height
-                       let rect = Rect::from_min_size(position, size);
+        // Device panel
+        painter.rect_filled(rect, 5.0, Color32::TRANSPARENT); // Background color
+                                                              // Border stroke
+        painter.rect_stroke(
+            rect,
+            4.0,
+            Stroke::new(2.0, menu_bar_color),
+            StrokeKind::Inside,
+        );
 
-                       // Place the slider at the defined rectangle
-                       ui.put(
-                           rect,
-                           Slider::new(&mut *self.slider_val, 0.0..=100.0).text("My value"),
-                       );
-            */
-            // Return both responses for combining
-            (left_response, right_response)
-        });
+        // Menu bar
+        painter.rect_filled(
+            Rect {
+                min: rect.min,
+                max: rect.min + vec2(rect.width(), 24.0),
+            },
+            CornerRadius {
+                nw: 4,
+                ne: 4,
+                sw: 0,
+                se: 0,
+            },
+            menu_bar_color,
+        );
 
-        // Combine the responses
-        let mut response = frame_response.response;
-        let (left_response, right_response) = frame_response.inner;
+        // Pump name
+        painter.text(
+            name_text_pos,
+            egui::Align2::LEFT_TOP,
+            &self.name,
+            FontId::proportional(12.0),
+            menu_items_color,
+        );
 
-        // Update the response's clicked state based on either rectangle being clicked
-        if left_response.clicked() || right_response.clicked() {
-            response.mark_changed();
+        // // Add a label inside the rectangle
+        // painter.text(
+        //     rect.min + vec2(180.0, 5.0),
+        //     egui::Align2::LEFT_TOP,
+        //     &self.pitch,
+        //     FontId::proportional(12.0),
+        //     Color32::BLUE,
+        // );
+
+        // Syringe SVG
+        egui::Image::new(egui::include_image!("../assets/pics/syringe.svg"))
+            .tint(menu_items_color)
+            .paint_at(ui, syringe_icon_rect);
+        // Manually check for mouse interaction
+
+        // Syringe text
+        let syringe_text_rect = painter.text(
+            syringe_text_pos,
+            egui::Align2::LEFT_TOP,
+            match self.syringeset {
+                Syringeset::None => "None",
+                Syringeset::UL10 => "10 uL",
+                Syringeset::UL25 => "25 uL",
+                Syringeset::UL50 => "50 uL",
+                Syringeset::UL100 => "100 uL",
+                Syringeset::UL250 => "250 uL",
+                Syringeset::UL500 => "500 uL",
+                Syringeset::UL1000 => "1 mL",
+                Syringeset::UL2500 => "2.5 mL",
+                Syringeset::UL3000 => "3 mL",
+                Syringeset::UL5000 => "5 mL",
+                Syringeset::UL10000 => "10 mL",
+                Syringeset::UL25000 => "25 mL",
+                Syringeset::UL50000 => "50 mL",
+                Syringeset::UL100000 => "100 mL",
+            },
+            FontId::proportional(12.0),
+            menu_items_color,
+        );
+
+        let syringe_icon_plus_text_rect = Rect {
+            min: syringe_icon_rect.min,
+            max: pos2(syringe_text_rect.max.x, syringe_icon_rect.max.y),
+        };
+        // Syringe icon + text mouse click detection
+        let ctx = ui.ctx();
+        if ctx.pointer_latest_pos().map_or(false, |pos| {
+            syringe_icon_plus_text_rect.contains(pos)
+                && ctx.input(|i| i.pointer.button_released(egui::PointerButton::Primary))
+        }) {
+            ui.label("Syringe menu icon clicked!");
+            *self.action = Actions::MenuSyringeClicked;
         }
 
-        // Handle frame hover effect
-        if response.contains_pointer() {
-            *self.widget_hovered = true;
+        // Speaker SVG
+        if *self.sound_state {
+            egui::Image::new(egui::include_image!("../assets/pics/speaker-high.svg"))
+                .tint(menu_items_color)
+                .paint_at(ui, speaker_rect);
         } else {
-            *self.widget_hovered = false;
+            egui::Image::new(egui::include_image!("../assets/pics/speaker-x.svg"))
+                .tint(menu_items_color)
+                .paint_at(ui, speaker_rect);
         }
+        // Manually check for mouse interaction
+        let ctx = ui.ctx();
+        if ctx.pointer_latest_pos().map_or(false, |pos| {
+            speaker_rect.contains(pos)
+                && ctx.input(|i| i.pointer.button_released(egui::PointerButton::Primary))
+        }) {
+            ui.label("Speaker menu icon clicked!");
+            *self.action = Actions::MenuSpeakerClicked;
+        }
+
+        if *self.linkset == Linkset::None {
+            egui::Image::new(egui::include_image!("../assets/pics/link-break-light.svg"))
+                .tint(menu_items_color)
+                .paint_at(ui, link_rect);
+        } else {
+            egui::Image::new(egui::include_image!("../assets/pics/link-light.svg"))
+                .tint(menu_items_color)
+                .paint_at(ui, link_rect);
+        }
+        // Manually check for mouse interaction
+        let ctx = ui.ctx();
+        if ctx.pointer_latest_pos().map_or(false, |pos| {
+            link_rect.contains(pos)
+                && ctx.input(|i| i.pointer.button_released(egui::PointerButton::Primary))
+        }) {
+            ui.label("Linkset menu icon clicked!");
+            *self.action = Actions::MenuLinksetClicked;
+        }
+
+        // Link text
+        painter.text(
+            rect.min + vec2(220.0, 5.0),
+            egui::Align2::LEFT_TOP,
+            match self.linkset {
+                Linkset::None => "",
+                Linkset::A => "A",
+                Linkset::B => "B",
+                Linkset::C => "C",
+                Linkset::D => "D",
+                Linkset::E => "E",
+                Linkset::F => "F",
+            },
+            FontId::proportional(12.0),
+            menu_items_color,
+        );
+
+        egui::Image::new(egui::include_image!("../assets/pics/info.svg"))
+            .tint(menu_items_color)
+            .paint_at(ui, info_rect);
+        // Manually check for mouse interaction
+        let ctx = ui.ctx();
+        if ctx.pointer_latest_pos().map_or(false, |pos| {
+            info_rect.contains(pos)
+                && ctx.input(|i| i.pointer.button_released(egui::PointerButton::Primary))
+        }) {
+            ui.label("Linkset menu icon clicked!");
+            *self.action = Actions::MenuInfoClicked;
+        }
+
+        egui::Image::new(egui::include_image!("../assets/pics/triangle.svg"))
+            .tint(Color32::GRAY)
+            .rotate(PI / 6.0, Vec2::splat(0.5))
+            .paint_at(ui, left_arrow_rect);
+        // Manually check for mouse interaction
+        let ctx = ui.ctx();
+        if ctx.pointer_latest_pos().map_or(false, |pos| {
+            left_arrow_rect.contains(pos)
+                && ctx.input(|i| i.pointer.button_released(egui::PointerButton::Primary))
+        }) {
+            *self.action = Actions::ButtonDispenseClicked;
+        }
+
+        egui::Image::new(egui::include_image!("../assets/pics/triangle.svg"))
+            .tint(Color32::GRAY)
+            .rotate(-PI / 6.0, Vec2::splat(0.5))
+            .paint_at(ui, right_arrow_rect);
+        // Manually check for mouse interaction
+        let ctx = ui.ctx();
+        if ctx.pointer_latest_pos().map_or(false, |pos| {
+            right_arrow_rect.contains(pos)
+                && ctx.input(|i| i.pointer.button_released(egui::PointerButton::Primary))
+        }) {
+            *self.action = Actions::ButtonWithdrawClicked;
+        }
+
+        egui::Image::new(egui::include_image!("../assets/pics/pump.svg")).paint_at(ui, pump_rect);
+
+        // Manually check if the mouse is over the syringe_rect
+        let ctx = ui.ctx();
+        if ctx.pointer_latest_pos().map_or(false, |pos| {
+            pump_rect.contains(pos)
+                && ctx.input(|i| i.pointer.button_released(egui::PointerButton::Primary))
+        }) {
+            *self.action = Actions::PumpClicked;
+        }
+
+        // Pump name on pump SVG
+        painter.text(
+            name_on_pump_text_pos,
+            egui::Align2::CENTER_CENTER,
+            // &self.name.to_uppercase(),
+            &self.name,
+            FontId::proportional(10.0),
+            ui.style().visuals.text_color(),
+        );
+
+        // Dummy code to generate Response
+        let image_rect = Rect {
+            min: pos2(0.0, 0.0),
+            max: pos2(300.0, 300.0),
+        };
+
+        // Create an interactable area over the image
+        let response = ui.interact(image_rect, Id::new(123), egui::Sense::click());
         response
     }
 }
 
-//
-//
-//
-//
-//
-fn draw_shape(
-    ui: &mut Ui,
-    // shape_state: &mut ShapeState,
-    mouse_state: &mut PumpMouseState,
-    color_state: &mut PumpColorState,
-    shape: &ShapeStruct,
-) -> Response {
-    // NOTE: ui refers to the frame
-    //
-    // POSITION THE RECTANGLE.
-    //
-    // Rect::from_min_size takes two vectors
-    // which are two sets of x,y coords.
-    //
-    // Resulting rect is absolute coords
-    // (x1, y1) and (x2, y2) of shape
-    // relative to the frame.
-    //
-    let rect_x1_y1_x2_y2 = Rect::from_min_size(
-        ui.min_rect().min /* frame origin */ + shape.top_left_x_y_coords,
-        shape.x_y_dims,
-    );
-
-    let response: Response;
-
-    match shape.geometry {
-        Geometry::Rectangle => {
-            response = ui.allocate_rect(rect_x1_y1_x2_y2, Sense::click());
-            if response.clicked() {
-                // *shape_on = !*shape_on;
-                *mouse_state = PumpMouseState::Clicked;
-            } else if response.hovered() {
-                *mouse_state = PumpMouseState::Hovering;
-            } else {
-                *mouse_state = PumpMouseState::None;
-            }
-        }
-        Geometry::Triangle => {
-            response = ui.allocate_rect(rect_x1_y1_x2_y2, Sense::click());
-            println!("Triangle")
-        }
-        Geometry::Circle => {
-            response = ui.allocate_rect(rect_x1_y1_x2_y2, Sense::click());
-            println!("Circle")
-        }
-    }
-
-    //
-    //
-    //
-    let color = match color_state {
-        PumpColorState::Dim => shape.inactive_color,
-        PumpColorState::On => shape.active_color,
-        PumpColorState::Highlight => shape.hover_color,
-    };
-
-    //
-    // Draw the shape
-    //
-    // Rectangles require rounding parameter
-    //
-    match shape.geometry {
-        Geometry::Rectangle => {
-            ui.painter()
-                .rect_filled(rect_x1_y1_x2_y2, shape.rounding, color);
-        }
-        Geometry::Triangle => {
-            println!("Triangle")
-        }
-        Geometry::Circle => {
-            println!("Circle")
-        }
-    }
-
-    response
-
-    // let origin = Pos2 {
-    //     x: config_frame.frame_min_rect_abs_coords.min.x,
-    //     y: config_frame.frame_min_rect_abs_coords.min.y,
-    // };
-
-    // let my_wee_rect = Rect {
-    //     min: egui::pos2(0., 0.),
-    //     max: egui::pos2(33., 33.),
-    // };
-
-    // for i in 1..50 {
-    //     let rect = my_wee_rect.translate(Vec2 {
-    //         x: origin.x + i as f32,
-    //         y: origin.y + i as f32,
-    //     });
-
-    //     ui.painter()
-    //         .rect_filled(rect, widget_config.rect_rounding, color);
-    // }
-}
-
-//
-// ======================================================================
-// ======================================================================
-// ======================================================================
-//
-
-//
-// Data structure defining a shape
-//
-struct ShapeStruct {
-    /// The min_x_y_coords refer
-    /// to the top left corner of
-    /// the rectangle, relative
-    /// to the containing frame.
-    geometry: Geometry,
-    top_left_x_y_coords: Vec2,
-    x_y_dims: Vec2,
-    inactive_color: Color32,
-    active_color: Color32,
-    hover_color: Color32,
-    rounding: f32,
-}
-
-//
-// Default values
-//
-impl Default for ShapeStruct {
-    fn default() -> Self {
-        Self {
-            geometry: Default::default(),
-            top_left_x_y_coords: Vec2::default(),
-            x_y_dims: Vec2::default(),
-            inactive_color: Color32::from_gray(180),
-            active_color: Color32::from_rgb(100, 200, 100),
-            hover_color: Color32::from_rgb(150, 220, 150),
-            rounding: 4.0,
-        }
-    }
-}
+// ==================================================================
+// ==================================================================
+// ==================================================================
